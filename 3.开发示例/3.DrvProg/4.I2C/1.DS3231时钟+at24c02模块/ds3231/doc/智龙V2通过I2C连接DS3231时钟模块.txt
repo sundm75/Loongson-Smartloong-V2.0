@@ -1,0 +1,84 @@
+智龙V2通过I2C连接DS3231时钟模块
+
+
+DS3231高精度I2C实时时钟。为了学习智龙V2和龙芯1C的使用，开发了ds3231的驱动。
+
+接线方式：使用现成的ds3231模块，芯片和电阻都焊好了，用面包板线接出来。智龙接口是排针不能直接
+插面包板线，简陋地焊了几个母接口。
+智龙Vcc =====  DS3231+
+智龙GND =====  DS3231-
+智龙GPIO50 ====  ds3231 SDA
+智龙GPIO51 ====  ds3231 SCL
+
+使用是的1c芯片的I2C-2,I2C_SDA2和I2C_SCL2需要和GPIO50 GPIO51复用。
+必须将GPIO50 GPIO51的复用四打开才行，否则不会工作的。详见程序。
+
+devr 开发：
+
+因为ds3231的读写地址是0B1101000+(R/W)，取前7位为0x68。
+将设备挂到i2c-2上：
+    i2c_adap = i2c_get_adapter(2);
+    ds3231_client = i2c_new_device(i2c_adap, &ds3231_info);
+    i2c_put_adapter(i2c_adap);	
+
+
+driver的开发
+
+模块初始函数调用i2c_add_driver。系统会调用ds3231_probe探测函数。
+因为使用了gpio50 51的复用四，一定要有下面两行。
+	//打开第四复用gpio50 51，必须做
+	__raw_writel(readl(LS1X_CBUS_FOURTHT1) |( 1 << (50 -  32)) ,LS1X_CBUS_FOURTHT1);
+	__raw_writel(readl(LS1X_CBUS_FOURTHT1) |( 1 << (51 -  32)) ,LS1X_CBUS_FOURTHT1);
+
+下面注册设备，生成sysfs。sysfs 的路径为
+/sys/devices/platform/ls1x-i2c.2/ds3231class/ds3231。
+生成了三个文件，文件date可以读写。读出为当前日期，如
+/sys/devices/platform/ls1x-i2c.2/ds3231class/ds3231 # cat date
+151030
+设置日期方法为将年月日以yymmdd格式写入文件date，如echo 151030 > date
+
+文件time可以读写，读出为当前时间
+/sys/devices/platform/ls1x-i2c.2/ds3231class/ds3231 # cat time
+155947
+设置时间文件为写入时分秒，格式为hhmmss。如echo 160102 > time
+
+文件register为只读，打印出19个寄存器。
+/sys/devices/platform/ls1x-i2c.2/ds3231class/ds3231 # cat register 
+ds3231_recv start
+[00]=0x14
+[01]=0x07
+[02]=0x16
+[03]=0x05
+[04]=0x30
+[05]=0x10
+[06]=0x15
+[07]=0x00
+[08]=0x00
+[09]=0x00
+[0a]=0x00
+[0b]=0x00
+[0c]=0x00
+[0d]=0x00
+[0e]=0x00
+[0f]=0x88
+[10]=0x00
+[11]=0x1a
+[12]=0x00
+
+
+
+I2C实现方法调用系统函数i2c_master_send()和i2c_master_recv()，有详细文档没必要
+再写说明了。
+
+先做这么多如果需要读写其它寄存器用I2C调用很容易实现。
+
+编译使用最简单的Makefile
+obj-m := ds3231.o
+
+编译命令
+make 
+
+如果发现生成了目录/sys/devices/platform/ls1x-i2c.2/ds3231class/ds3231，就是成功了
+对这个目录下的三个文件date time register读写可以读取和设置日期时间。
+也可以用c语言或其它语言开发应用程序读写这些文件。
+

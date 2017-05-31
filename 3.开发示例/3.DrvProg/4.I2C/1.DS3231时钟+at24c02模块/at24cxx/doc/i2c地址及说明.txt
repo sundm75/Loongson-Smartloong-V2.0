@@ -1,0 +1,16 @@
+1.
+#define EEPROM_ADDRESS 			0x50  //24C08的地址，0x57 A0 A1 A2 接GND*/
+
+2. at24cxx_dev1.c 采用 i2c_new_probed_device动态注册设备
+at24cxx_dev.c采用 i2c_new_device 静态注册设备
+
+3. 模块先加载at24cxx_dev模块，再加载 at24cxx_drv模块。
+
+4. 在driver的probe中添加i2c 的 GPIO50与GPIO51 的第4复用。
+#include <loongson1.h>
+	//打开第四复用gpio50 51，必须做
+	__raw_writel(readl(LS1X_CBUS_FOURTHT1) |( 1 << (50 -  32)) ,LS1X_CBUS_FOURTHT1);
+	__raw_writel(readl(LS1X_CBUS_FOURTHT1) |( 1 << (51 -  32)) ,LS1X_CBUS_FOURTHT1);
+
+5. 在dev中修改i2c 总线号为：2
+i2c_adap = i2c_get_adapter(2);
