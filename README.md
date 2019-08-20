@@ -5,4 +5,4 @@
 
 提取码：q4dl 
 
-![关于虚拟机网络配置的说明](./网络配置.md)
+![关于虚拟机网络配置的说明](https://github.com/sundm75/Loongson-Smartloong-V2.0/blob/master/网络配置.md)
